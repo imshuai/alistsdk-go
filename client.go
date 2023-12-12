@@ -1,8 +1,11 @@
 package alistsdk
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -66,17 +69,12 @@ func NewClientWithToken(token string) *Client {
 // - *User: The user information if the login is successful.
 // - error: An error if the login or user information retrieval fails.
 func (c *Client) Login() (*User, error) {
-	body := struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-		OtpCode  string `json:"otp_code"`
-	}{
-		Username: c.username,
-		Password: c.password,
-		OtpCode:  "",
-	}
-	byts, _ := json.Marshal(body)
-	respByts, err := post(c.base+"/api/auth/login", c.header, byts)
+	body := `{
+        "username": "` + c.username + `",
+        "password": "` + c.password + `"
+    }`
+
+	respByts, err := do("POST", c.base+"/api/auth/login", c.header, bytes.NewBufferString(body))
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +91,7 @@ func (c *Client) Login() (*User, error) {
 
 	respByts = respByts[0:0]
 
-	respByts, err = get(c.base+"/api/me", c.header)
+	respByts, err = do("GET", c.base+"/api/me", c.header, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -122,13 +120,11 @@ func (c *Client) MkDir(path string) error {
 	if !c.isLogin() {
 		return errors.New("not login yet")
 	}
-	body := struct {
-		Path string `json:"path"`
-	}{
-		Path: path,
-	}
-	byts, _ := json.Marshal(body)
-	respByts, err := post(c.base+"/api/fs/mkdir", c.header, byts)
+	body := `{
+        "path": "` + path + `"
+    }`
+
+	respByts, err := do("POST", c.base+"/api/fs/mkdir", c.header, bytes.NewBufferString(body))
 	if err != nil {
 		return err
 	}
@@ -155,15 +151,11 @@ func (c *Client) Rename(newName, path string) error {
 	if !c.isLogin() {
 		return errors.New("not login yet")
 	}
-	body := struct {
-		NewName string `json:"new_name"`
-		Path    string `json:"path"`
-	}{
-		NewName: newName,
-		Path:    path,
-	}
-	byts, _ := json.Marshal(body)
-	respByts, err := post(c.base+"/api/fs/rename", c.header, byts)
+	body := `{
+        "name": "` + newName + `",
+        "path": "` + path + `"
+    }`
+	respByts, err := do("POST", c.base+"/api/fs/rename", c.header, bytes.NewBufferString(body))
 	if err != nil {
 		return err
 	}
@@ -190,15 +182,12 @@ func (c *Client) Remove(dir string, names []string) error {
 	if !c.isLogin() {
 		return errors.New("not login yet")
 	}
-	body := struct {
-		Dir   string   `json:"dir"`
-		Names []string `json:"names"`
-	}{
-		Dir:   dir,
-		Names: names,
-	}
-	byts, _ := json.Marshal(body)
-	respByts, err := post(c.base+"/api/fs/remove", c.header, byts)
+	body := `{
+        "names": ["` + strings.Join(names, `","`) + `"],
+        "dir": "` + dir + `"
+    }`
+
+	respByts, err := do("POST", c.base+"/api/fs/remove", c.header, bytes.NewBufferString(body))
 	if err != nil {
 		return err
 	}
@@ -221,13 +210,11 @@ func (c *Client) RemoveEmptyDir(dir string) error {
 	if !c.isLogin() {
 		return errors.New("not login yet")
 	}
-	body := struct {
-		SrcDir string `json:"src_dir"`
-	}{
-		SrcDir: dir,
-	}
-	byts, _ := json.Marshal(body)
-	respByts, err := post(c.base+"/api/fs/remove_empty_directory", c.header, byts)
+	body := `{
+        "src_dir": "` + dir + `"
+    }`
+
+	respByts, err := do("POST", c.base+"/api/fs/remove_empty_directory", c.header, bytes.NewBufferString(body))
 	if err != nil {
 		return err
 	}
@@ -252,17 +239,13 @@ func (c *Client) Copy(srcDir, destDir string, names []string) error {
 	if !c.isLogin() {
 		return errors.New("not login yet")
 	}
-	body := struct {
-		SrcDir  string   `json:"src_dir"`
-		DestDir string   `json:"dst_dir"`
-		Names   []string `json:"names"`
-	}{
-		SrcDir:  srcDir,
-		DestDir: destDir,
-		Names:   names,
-	}
-	byts, _ := json.Marshal(body)
-	respByts, err := post(c.base+"/api/fs/copy", c.header, byts)
+	body := `{
+        "src_dir": "` + srcDir + `",
+        "dst_dir": "` + destDir + `",
+        "names": ["` + strings.Join(names, `","`) + `"]
+    }`
+
+	respByts, err := do("POST", c.base+"/api/fs/copy", c.header, bytes.NewBufferString(body))
 	if err != nil {
 		return err
 	}
@@ -284,15 +267,12 @@ func (c *Client) RecursiveMove(srcDir, destDir string) error {
 	if !c.isLogin() {
 		return errors.New("not login yet")
 	}
-	body := struct {
-		SrcDir  string `json:"src_dir"`
-		DestDir string `json:"dst_dir"`
-	}{
-		SrcDir:  srcDir,
-		DestDir: destDir,
-	}
-	byts, _ := json.Marshal(body)
-	respByts, err := post(c.base+"/api/fs/recursive_move", c.header, byts)
+	body := `{
+        "src_dir": "` + srcDir + `",
+        "dst_dir": "` + destDir + `"
+    }`
+
+	respByts, err := do("POST", c.base+"/api/fs/recursive_move", c.header, bytes.NewBufferString(body))
 	if err != nil {
 		return err
 	}
@@ -315,17 +295,42 @@ func (c *Client) Move(srcDir, destDir string, names []string) error {
 	if !c.isLogin() {
 		return errors.New("not login yet")
 	}
-	body := struct {
-		SrcDir  string   `json:"src_dir"`
-		DestDir string   `json:"dst_dir"`
-		Names   []string `json:"names"`
-	}{
-		SrcDir:  srcDir,
-		DestDir: destDir,
-		Names:   names,
+	body := `{
+        "src_dir": "` + srcDir + `",
+        "dst_dir": "` + destDir + `",
+        "names": ["` + strings.Join(names, `","`) + `"]
+    }`
+
+	respByts, err := do("POST", c.base+"/api/fs/move", c.header, bytes.NewBufferString(body))
+	if err != nil {
+		return err
 	}
-	byts, _ := json.Marshal(body)
-	respByts, err := post(c.base+"/api/fs/move", c.header, byts)
+	comResp := &CommonResp{}
+	err = json.Unmarshal(respByts, comResp)
+	if err != nil {
+		return err
+	}
+	if comResp.Code != 200 {
+		return errors.New(comResp.Message)
+	}
+	return nil
+}
+
+func (c *Client) batchRename(endpoint, srcDir string, nameKV map[string]string) error {
+	if !c.isLogin() {
+		return errors.New("not login yet")
+	}
+	kvs := make([]string, len(nameKV))
+	for k, v := range nameKV {
+		kvs = append(kvs, `"`+k+`":"`+v+`"`)
+	}
+
+	body := `{
+        "src_dir": "` + srcDir + `",
+        "rename_objects": [{` + strings.Join(kvs, `,`) + `}]
+    }`
+
+	respByts, err := do("POST", c.base+endpoint, c.header, bytes.NewBufferString(body))
 	if err != nil {
 		return err
 	}
@@ -344,42 +349,8 @@ func (c *Client) Move(srcDir, destDir string, names []string) error {
 // srcDir: 源目录
 // srcName: 源文件名正则匹配表达式
 // newName: 新文件名正则引用表达式
-func (c *Client) RegexRename(srcDir, srcName, newName string) error {
-	if !c.isLogin() {
-		return errors.New("not login yet")
-	}
-	body := struct {
-		SrcDir        string `json:"src_dir"`
-		RenameObjects []struct {
-			SrcName string `json:"src_name"`
-			NewName string `json:"new_name"`
-		} `json:"rename_objects"`
-	}{
-		SrcDir: srcDir,
-		RenameObjects: []struct {
-			SrcName string `json:"src_name"`
-			NewName string `json:"new_name"`
-		}{
-			{
-				SrcName: srcName,
-				NewName: newName,
-			},
-		},
-	}
-	byts, _ := json.Marshal(body)
-	respByts, err := post(c.base+"/api/fs/regex_rename", c.header, byts)
-	if err != nil {
-		return err
-	}
-	comResp := &CommonResp{}
-	err = json.Unmarshal(respByts, comResp)
-	if err != nil {
-		return err
-	}
-	if comResp.Code != 200 {
-		return errors.New(comResp.Message)
-	}
-	return nil
+func (c *Client) RegexRename(srcDir string, regexKV map[string]string) error {
+	return c.batchRename("/api/fs/regex_rename", srcDir, regexKV)
 }
 
 // BatchRename 批量重命名
@@ -392,45 +363,7 @@ func (c *Client) RegexRename(srcDir, srcName, newName string) error {
 // Returns:
 // - error: an error if the batch rename operation fails.
 func (c *Client) BatchRename(srcDir string, batchKV map[string]string) error {
-	if !c.isLogin() {
-		return errors.New("not login yet")
-	}
-	body := struct {
-		SrcDir        string `json:"src_dir"`
-		RenameObjects []struct {
-			SrcName string `json:"src_name"`
-			NewName string `json:"new_name"`
-		} `json:"rename_objects"`
-	}{
-		SrcDir: srcDir,
-		RenameObjects: []struct {
-			SrcName string `json:"src_name"`
-			NewName string `json:"new_name"`
-		}{},
-	}
-	for k, v := range batchKV {
-		body.RenameObjects = append(body.RenameObjects, struct {
-			SrcName string `json:"src_name"`
-			NewName string `json:"new_name"`
-		}{
-			SrcName: k,
-			NewName: v,
-		})
-	}
-	byts, _ := json.Marshal(body)
-	respByts, err := post(c.base+"/api/fs/batch_rename", c.header, byts)
-	if err != nil {
-		return err
-	}
-	comResp := &CommonResp{}
-	err = json.Unmarshal(respByts, comResp)
-	if err != nil {
-		return err
-	}
-	if comResp.Code != 200 {
-		return errors.New(comResp.Message)
-	}
-	return nil
+	return c.batchRename("/api/fs/batch_rename", srcDir, batchKV)
 }
 
 // Dirs 获取目录
@@ -439,30 +372,20 @@ func (c *Client) BatchRename(srcDir string, batchKV map[string]string) error {
 // It takes the following parameters:
 // - path: the path of the directory to retrieve.
 // - dirPassword: the password for the directory.
-// - pageNum: the page number of the directories.
-// - pageSize: the number of directories per page.
-// - refresh: a flag indicating whether to refresh the directory list.
+// - forceRoot: a flag indicating whether to the root directory.
 //
 // It returns a slice of Dir structs and an error.
-func (c *Client) Dirs(path, dirPassword string, pageNum, pageSize int, refresh bool) ([]Dir, error) {
+func (c *Client) Dirs(path, dirPassword string, forceRoot bool) ([]Dir, error) {
 	if !c.isLogin() {
 		return nil, errors.New("not login yet")
 	}
-	body := struct {
-		Path        string `json:"path"`
-		DirPassword string `json:"password"`
-		PageNum     int    `json:"page"`
-		PageSize    int    `json:"per_page"`
-		Refresh     bool   `json:"refresh"`
-	}{
-		Path:        path,
-		DirPassword: dirPassword,
-		PageNum:     pageNum,
-		PageSize:    pageSize,
-		Refresh:     refresh,
-	}
-	byts, _ := json.Marshal(body)
-	respByts, err := post(c.base+"/api/fs/dirs", c.header, byts)
+	body := `{
+        "path": "` + path + `",
+        "password": "` + dirPassword + `",
+        "force_root": ` + strconv.FormatBool(forceRoot) + `
+    }`
+
+	respByts, err := do("POST", c.base+"/api/fs/dirs", c.header, bytes.NewBufferString(body))
 	if err != nil {
 		return nil, err
 	}
@@ -494,21 +417,15 @@ func (c *Client) List(path, dirPassword string, pageNum, pageSize int, refresh b
 	if !c.isLogin() {
 		return nil, errors.New("not login yet")
 	}
-	body := struct {
-		Path        string `json:"path"`
-		DirPassword string `json:"password"`
-		PageNum     int    `json:"page"`
-		PageSize    int    `json:"per_page"`
-		Refresh     bool   `json:"refresh"`
-	}{
-		Path:        path,
-		DirPassword: dirPassword,
-		PageNum:     pageNum,
-		PageSize:    pageSize,
-		Refresh:     refresh,
-	}
-	byts, _ := json.Marshal(body)
-	respByts, err := post(c.base+"/api/fs/list", c.header, byts)
+	body := `{
+        "path": "` + path + `",
+        "password": "` + dirPassword + `",
+        "page_num": ` + strconv.Itoa(pageNum) + `,
+        "per_page": ` + strconv.Itoa(pageSize) + `,
+        "refresh": ` + strconv.FormatBool(refresh) + `
+    }`
+
+	respByts, err := do("POST", c.base+"/api/fs/list", c.header, bytes.NewBufferString(body))
 	if err != nil {
 		return nil, err
 	}
@@ -537,15 +454,12 @@ func (c *Client) Get(path, dirPassword string) (*File, error) {
 	if !c.isLogin() {
 		return nil, errors.New("not login yet")
 	}
-	body := struct {
-		Path        string `json:"path"`
-		DirPassword string `json:"password"`
-	}{
-		Path:        path,
-		DirPassword: dirPassword,
-	}
-	byts, _ := json.Marshal(body)
-	respByts, err := post(c.base+"/api/fs/get", c.header, byts)
+	body := `{
+        "path": "` + path + `",
+        "password": "` + dirPassword + `"
+    }`
+
+	respByts, err := do("POST", c.base+"/api/fs/get", c.header, bytes.NewBufferString(body))
 	if err != nil {
 		return nil, err
 	}
@@ -569,7 +483,7 @@ func (c *Client) GetSettings() (*Settings, error) {
 	if !c.isLogin() {
 		return nil, errors.New("not login yet")
 	}
-	respByts, err := get(c.base+"/api/settings", c.header)
+	respByts, err := do("GET", c.base+"/api/settings", c.header, nil)
 	if err != nil {
 		return nil, err
 	}

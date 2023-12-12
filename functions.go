@@ -13,35 +13,16 @@ const (
 
 var ()
 
-func post(url string, header map[string][]string, body []byte) ([]byte, error) {
-	return postWithTimeout(url, header, body, DEFAULT_TIMEOUT)
-}
-
-func postWithTimeout(url string, header map[string][]string, body []byte, timeout int) ([]byte, error) {
-
+func do(method string, url string, header map[string][]string, body io.Reader) ([]byte, error) {
 	client := &http.Client{
-		Timeout: time.Duration(timeout) * time.Second,
+		Timeout: time.Duration(DEFAULT_TIMEOUT) * time.Second,
 	}
-	request := &http.Request{}
-	request.Header = header
-	request.Method = "POST"
-	request.Header.Set("User-Agent", DEFAULT_USERAGENT)
-	request.URL, _ = request.URL.Parse(url)
-	resp, err := client.Do(request)
+	request, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	return io.ReadAll(resp.Body)
-}
-
-func get(url string, header map[string][]string) ([]byte, error) {
-	client := &http.Client{}
-	request := &http.Request{}
 	request.Header = header
-	request.Method = "GET"
 	request.Header.Set("User-Agent", DEFAULT_USERAGENT)
-	request.URL, _ = request.URL.Parse(url)
 	resp, err := client.Do(request)
 	if err != nil {
 		return nil, err
