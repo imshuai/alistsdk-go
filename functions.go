@@ -1,6 +1,7 @@
 package alistsdk
 
 import (
+	"crypto/tls"
 	"io"
 	"net/http"
 	"time"
@@ -13,9 +14,18 @@ const (
 
 var ()
 
-func do(method string, url string, header map[string][]string, body io.Reader) ([]byte, error) {
+func do(method string, url string, header map[string][]string, body io.Reader, timeout int, inscure bool) ([]byte, error) {
 	client := &http.Client{
-		Timeout: time.Duration(DEFAULT_TIMEOUT) * time.Second,
+		Timeout: time.Duration(func() int {
+			if timeout > 0 {
+				return timeout
+			} else {
+				return DEFAULT_TIMEOUT
+			}
+		}()) * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: inscure},
+		},
 	}
 	request, err := http.NewRequest(method, url, body)
 	if err != nil {

@@ -17,41 +17,31 @@ type Client struct {
 	token    string              //Alist API access token
 	username string              //Alist username
 	password string              //Alist password
+	inscure  bool                //Skip TLS verification
+	timeout  int                 //Request timeout
 	header   map[string][]string //http request header
 }
 
 // NewClient creates a new instance of the Client struct.
 //
 // Parameters:
-// - endpoint: the base URL of the client.
+// - endpoint: the API endpoint.
 // - username: the username for authentication.
 // - password: the password for authentication.
+// - insecure: whether to ignore SSL certificate verification.
+// - timeout: the timeout in seconds for API requests.
 //
 // Returns:
-// - *Client: a pointer to the newly created Client instance.
-func NewClient(endpoint, username, password string) *Client {
+// - a pointer to the Client struct.
+func NewClient(endpoint, username, password string, insecure bool, timeout int) *Client {
 	return &Client{
 		base:     endpoint,
 		username: username,
 		password: password,
+		inscure:  insecure,
+		timeout:  timeout,
 		header: map[string][]string{
 			"Content-Type": {"application/json; charset=utf-8"},
-		},
-	}
-}
-
-// NewClientWithToken creates a new client with the given token.
-//
-// Parameters:
-//   - token: the token to be used for authentication.
-//
-// Returns:
-//   - *Client: a pointer to the newly created client.
-func NewClientWithToken(token string) *Client {
-	return &Client{
-		token: token,
-		header: map[string][]string{
-			"Content-Type": {"application/json"},
 		},
 	}
 }
@@ -74,7 +64,7 @@ func (c *Client) Login() (*User, error) {
         "password": "` + c.password + `"
     }`
 
-	respByts, err := do("POST", c.base+"/api/auth/login", c.header, bytes.NewBufferString(body))
+	respByts, err := do("POST", c.base+"/api/auth/login", c.header, bytes.NewBufferString(body), c.timeout, c.inscure)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +81,7 @@ func (c *Client) Login() (*User, error) {
 
 	respByts = respByts[0:0]
 
-	respByts, err = do("GET", c.base+"/api/me", c.header, nil)
+	respByts, err = do("GET", c.base+"/api/me", c.header, nil, c.timeout, c.inscure)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +114,7 @@ func (c *Client) MkDir(path string) error {
         "path": "` + path + `"
     }`
 
-	respByts, err := do("POST", c.base+"/api/fs/mkdir", c.header, bytes.NewBufferString(body))
+	respByts, err := do("POST", c.base+"/api/fs/mkdir", c.header, bytes.NewBufferString(body), c.timeout, c.inscure)
 	if err != nil {
 		return err
 	}
@@ -155,7 +145,7 @@ func (c *Client) Rename(newName, path string) error {
         "name": "` + newName + `",
         "path": "` + path + `"
     }`
-	respByts, err := do("POST", c.base+"/api/fs/rename", c.header, bytes.NewBufferString(body))
+	respByts, err := do("POST", c.base+"/api/fs/rename", c.header, bytes.NewBufferString(body), c.timeout, c.inscure)
 	if err != nil {
 		return err
 	}
@@ -187,7 +177,7 @@ func (c *Client) Remove(dir string, names []string) error {
         "dir": "` + dir + `"
     }`
 
-	respByts, err := do("POST", c.base+"/api/fs/remove", c.header, bytes.NewBufferString(body))
+	respByts, err := do("POST", c.base+"/api/fs/remove", c.header, bytes.NewBufferString(body), c.timeout, c.inscure)
 	if err != nil {
 		return err
 	}
@@ -214,7 +204,7 @@ func (c *Client) RemoveEmptyDir(dir string) error {
         "src_dir": "` + dir + `"
     }`
 
-	respByts, err := do("POST", c.base+"/api/fs/remove_empty_directory", c.header, bytes.NewBufferString(body))
+	respByts, err := do("POST", c.base+"/api/fs/remove_empty_directory", c.header, bytes.NewBufferString(body), c.timeout, c.inscure)
 	if err != nil {
 		return err
 	}
@@ -245,7 +235,7 @@ func (c *Client) Copy(srcDir, destDir string, names []string) error {
         "names": ["` + strings.Join(names, `","`) + `"]
     }`
 
-	respByts, err := do("POST", c.base+"/api/fs/copy", c.header, bytes.NewBufferString(body))
+	respByts, err := do("POST", c.base+"/api/fs/copy", c.header, bytes.NewBufferString(body), c.timeout, c.inscure)
 	if err != nil {
 		return err
 	}
@@ -272,7 +262,7 @@ func (c *Client) RecursiveMove(srcDir, destDir string) error {
         "dst_dir": "` + destDir + `"
     }`
 
-	respByts, err := do("POST", c.base+"/api/fs/recursive_move", c.header, bytes.NewBufferString(body))
+	respByts, err := do("POST", c.base+"/api/fs/recursive_move", c.header, bytes.NewBufferString(body), c.timeout, c.inscure)
 	if err != nil {
 		return err
 	}
@@ -301,7 +291,7 @@ func (c *Client) Move(srcDir, destDir string, names []string) error {
         "names": ["` + strings.Join(names, `","`) + `"]
     }`
 
-	respByts, err := do("POST", c.base+"/api/fs/move", c.header, bytes.NewBufferString(body))
+	respByts, err := do("POST", c.base+"/api/fs/move", c.header, bytes.NewBufferString(body), c.timeout, c.inscure)
 	if err != nil {
 		return err
 	}
@@ -330,7 +320,7 @@ func (c *Client) batchRename(endpoint, srcDir string, nameKV map[string]string) 
         "rename_objects": [{` + strings.Join(kvs, `,`) + `}]
     }`
 
-	respByts, err := do("POST", c.base+endpoint, c.header, bytes.NewBufferString(body))
+	respByts, err := do("POST", c.base+endpoint, c.header, bytes.NewBufferString(body), c.timeout, c.inscure)
 	if err != nil {
 		return err
 	}
@@ -385,7 +375,7 @@ func (c *Client) Dirs(path, dirPassword string, forceRoot bool) ([]Dir, error) {
         "force_root": ` + strconv.FormatBool(forceRoot) + `
     }`
 
-	respByts, err := do("POST", c.base+"/api/fs/dirs", c.header, bytes.NewBufferString(body))
+	respByts, err := do("POST", c.base+"/api/fs/dirs", c.header, bytes.NewBufferString(body), c.timeout, c.inscure)
 	if err != nil {
 		return nil, err
 	}
@@ -425,7 +415,7 @@ func (c *Client) List(path, dirPassword string, pageNum, pageSize int, refresh b
         "refresh": ` + strconv.FormatBool(refresh) + `
     }`
 
-	respByts, err := do("POST", c.base+"/api/fs/list", c.header, bytes.NewBufferString(body))
+	respByts, err := do("POST", c.base+"/api/fs/list", c.header, bytes.NewBufferString(body), c.timeout, c.inscure)
 	if err != nil {
 		return nil, err
 	}
@@ -459,7 +449,7 @@ func (c *Client) Get(path, dirPassword string) (*File, error) {
         "password": "` + dirPassword + `"
     }`
 
-	respByts, err := do("POST", c.base+"/api/fs/get", c.header, bytes.NewBufferString(body))
+	respByts, err := do("POST", c.base+"/api/fs/get", c.header, bytes.NewBufferString(body), c.timeout, c.inscure)
 	if err != nil {
 		return nil, err
 	}
@@ -483,7 +473,7 @@ func (c *Client) GetSettings() (*Settings, error) {
 	if !c.isLogin() {
 		return nil, errors.New("not login yet")
 	}
-	respByts, err := do("GET", c.base+"/api/settings", c.header, nil)
+	respByts, err := do("GET", c.base+"/api/settings", c.header, nil, c.timeout, c.inscure)
 	if err != nil {
 		return nil, err
 	}
