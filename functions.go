@@ -14,7 +14,7 @@ const (
 
 var ()
 
-func do(method string, url string, header map[string][]string, body io.Reader, timeout int, inscure bool) ([]byte, error) {
+func do(method string, url string, body io.Reader, token string, timeout int, inscure bool) ([]byte, error) {
 	client := &http.Client{
 		Timeout: time.Duration(func() int {
 			if timeout > 0 {
@@ -31,7 +31,8 @@ func do(method string, url string, header map[string][]string, body io.Reader, t
 	if err != nil {
 		return nil, err
 	}
-	request.Header = header
+	request.Header.Set("Content-Type", "application/json; charset=utf-8")
+	request.Header.Set("Authorization", token)
 	request.Header.Set("User-Agent", DEFAULT_USERAGENT)
 	resp, err := client.Do(request)
 	if err != nil {
